@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Libby Lookup",
+  "version": "1.0",
+  "description": "Check OverDrive (Libby) availability for books on Goodreads",
+  "permissions": ["storage", "activeTab"],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Libby Lookup"
+  }
+}
