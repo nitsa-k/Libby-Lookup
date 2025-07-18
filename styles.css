@@ -220,8 +220,27 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   max-width: 320px;
   max-height: 300px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   font-family: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.libby-lookup-popup::-webkit-scrollbar {
+  width: 8px;
+}
+
+.libby-lookup-popup::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.libby-lookup-popup::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.libby-lookup-popup::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
 }
 
 .libby-lookup-popup-content {
@@ -287,4 +306,49 @@
   font-size: 11px;
   color: #d32f2f;
   font-style: italic;
+}
+
+/* Popup media type styles */
+.libby-lookup-popup-media-types {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.libby-lookup-popup-media-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.libby-lookup-popup-media-type .libby-lookup-media-icon {
+  font-size: 12px;
+}
+
+.libby-lookup-popup-media-type .libby-lookup-media-name {
+  font-weight: 500;
+  color: #382110;
+}
+
+.libby-lookup-popup-media-status {
+  color: #382110;
+  text-decoration: none;
+}
+
+.libby-lookup-popup-media-status:hover {
+  text-decoration: underline;
+}
+
+.libby-lookup-popup-media-status.available {
+  color: #2e7d32;
+}
+
+.libby-lookup-popup-media-status.wait {
+  color: #f57c00;
+}
+
+.libby-lookup-popup-media-status.unavailable {
+  color: #d32f2f;
 }

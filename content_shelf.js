@@ -26,8 +26,15 @@
 
     addLibraryColumn();
 
-    const promises = books.map((book) => processBook(book, selectedLibraries));
-    await Promise.all(promises);
+    const batchSize = 3;
+    for (let i = 0; i < books.length; i += batchSize) {
+      const batch = books.slice(i, i + batchSize);
+      await processBatch(batch, selectedLibraries);
+
+      if (i + batchSize < books.length) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
   }
 
   function extractBooksFromShelf() {
@@ -115,6 +122,11 @@
       th.className = "libby-lookup-header-cell";
       headerRow.appendChild(th);
     }
+  }
+
+  async function processBatch(books, selectedLibraries) {
+    const promises = books.map((book) => processBook(book, selectedLibraries));
+    await Promise.all(promises);
   }
 
   async function processBook(book, selectedLibraries) {
@@ -262,35 +274,57 @@
     });
 
     const popupContent = `
-        <div class="libby-lookup-popup-content">
-          <div class="libby-lookup-popup-header">
-            <h4>${title}</h4>
-          </div>
-          <div class="libby-lookup-popup-body">
-            ${sortedResults
-              .map(
-                (result) => `
-              <div class="libby-lookup-popup-item">
-                <div class="libby-lookup-popup-item-info">
-                  <strong>${result.library}</strong>
+      <div class="libby-lookup-popup-content">
+        <div class="libby-lookup-popup-header">
+          <h4>${title}</h4>
+        </div>
+        <div class="libby-lookup-popup-body">
+          ${sortedResults
+            .map(
+              (result) => `
+            <div class="libby-lookup-popup-item">
+              <div class="libby-lookup-popup-item-info">
+                <strong>${result.library}</strong>
+                ${
+                  result.status === "error"
+                    ? `<div class="libby-lookup-popup-error">Error: ${result.message}</div>`
+                    : ""
+                }
+                ${
+                  result.mediaTypes && result.mediaTypes.length > 0
+                    ? `
+                  <div class="libby-lookup-popup-media-types">
+                    ${result.mediaTypes
+                      .map(
+                        (mt) => `
+                      <div class="libby-lookup-popup-media-type">
+                        <span class="libby-lookup-media-icon">${mt.icon}</span>
+                        <span class="libby-lookup-media-name">${mt.typeName}:</span>
+                        <a href="${mt.bookUrl}" target="_blank" class="libby-lookup-popup-media-status ${mt.status}">
+                          ${mt.text}
+                        </a>
+                      </div>
+                    `
+                      )
+                      .join("")}
+                  </div>
+                `
+                    : `
                   <div class="libby-lookup-popup-status ${
                     result.availabilityStatus || "unknown"
                   }">
                     ${result.availability || "Check availability"}
                   </div>
-                  ${
-                    result.status === "error"
-                      ? `<div class="libby-lookup-popup-error">Error: ${result.message}</div>`
-                      : ""
-                  }
-                </div>
+                `
+                }
               </div>
-            `
-              )
-              .join("")}
-          </div>
+            </div>
+          `
+            )
+            .join("")}
         </div>
-      `;
+      </div>
+    `;
 
     popup.innerHTML = popupContent;
     document.body.appendChild(popup);
