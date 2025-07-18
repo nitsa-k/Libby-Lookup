@@ -2,6 +2,14 @@ document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
   await checkStatus();
+  setupEventListeners();
+}
+
+function setupEventListeners() {
+  document.getElementById("optionsBtn").addEventListener("click", () => {
+    chrome.runtime.openOptionsPage();
+    window.close();
+  });
 }
 
 async function checkStatus() {
