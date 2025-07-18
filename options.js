@@ -41,12 +41,12 @@ function renderLibraries() {
   container.innerHTML = "";
 
   allLibraries.forEach((library) => {
-    const isSelected = selectedLibraries.includes(library.slug);
+    const isSelected = selectedLibraries.includes(library.id);
 
     const libraryDiv = document.createElement("div");
     libraryDiv.innerHTML = `
       <label>
-        <input type="checkbox" value="${library.slug}" ${
+        <input type="checkbox" value="${library.id}" ${
       isSelected ? "checked" : ""
     }>
         ${library.name}
@@ -55,25 +55,25 @@ function renderLibraries() {
 
     const checkbox = libraryDiv.querySelector("input");
     checkbox.addEventListener("change", (e) => {
-      toggleLibrary(library.slug, e.target.checked);
+      toggleLibrary(library.id, e.target.checked);
     });
 
     container.appendChild(libraryDiv);
   });
 }
 
-function toggleLibrary(slug, isChecked) {
+function toggleLibrary(id, isChecked) {
   if (isChecked) {
-    if (!selectedLibraries.includes(slug)) {
-      selectedLibraries.push(slug);
+    if (!selectedLibraries.includes(id)) {
+      selectedLibraries.push(id);
     }
   } else {
-    selectedLibraries = selectedLibraries.filter((s) => s !== slug);
+    selectedLibraries = selectedLibraries.filter((s) => s !== id);
   }
 }
 
 function selectAll() {
-  selectedLibraries = allLibraries.map((lib) => lib.slug);
+  selectedLibraries = allLibraries.map((lib) => lib.id);
   renderLibraries();
 }
 

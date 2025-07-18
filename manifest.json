@@ -6,11 +6,26 @@
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://www.goodreads.com/*",
-    "https://thunder.api.overdrive.com/*"
+    "https://thunder.api.overdrive.com/*",
+    "https://libbyapp.com/*"
   ],
   "background": {
     "service_worker": "service_worker.js"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://www.goodreads.com/book/show/*"],
+      "js": ["content_book.js"]
+    },
+    {
+      "matches": [
+        "https://www.goodreads.com/review/list/*",
+        "https://www.goodreads.com/list/show/*",
+        "https://www.goodreads.com/shelf/show/*"
+      ],
+      "js": ["content_shelf.js"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "Libby Lookup"
