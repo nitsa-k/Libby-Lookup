@@ -22,8 +22,19 @@ async function loadLibraries() {
 
 async function loadSettings() {
   try {
-    const result = await chrome.storage.sync.get(["selectedLibraries"]);
+    const result = await chrome.storage.sync.get([
+      "selectedLibraries",
+      "showEbooks",
+      "showAudiobooks",
+    ]);
+
     selectedLibraries = result.selectedLibraries || [];
+
+    const showEbooks = result.showEbooks !== false; 
+    const showAudiobooks = result.showAudiobooks !== false; 
+
+    document.getElementById("showEbooks").checked = showEbooks;
+    document.getElementById("showAudiobooks").checked = showAudiobooks;
   } catch (error) {
     console.error("Error loading settings:", error);
     selectedLibraries = [];
@@ -31,9 +42,32 @@ async function loadSettings() {
 }
 
 function setupEventListeners() {
+  document
+    .getElementById("showEbooks")
+    .addEventListener("change", handleMediaTypeChange);
+  document
+    .getElementById("showAudiobooks")
+    .addEventListener("change", handleMediaTypeChange);
+
   document.getElementById("saveBtn").addEventListener("click", saveSettings);
   document.getElementById("selectAllBtn").addEventListener("click", selectAll);
   document.getElementById("clearAllBtn").addEventListener("click", clearAll);
+}
+
+function handleMediaTypeChange() {
+  const showEbooks = document.getElementById("showEbooks").checked;
+  const showAudiobooks = document.getElementById("showAudiobooks").checked;
+
+  if (!showEbooks && !showAudiobooks) {
+    event.target.checked = true;
+    showStatus("At least one media type must be selected.", "error");
+    return;
+  }
+
+  chrome.storage.sync.set({
+    showEbooks: showEbooks,
+    showAudiobooks: showAudiobooks,
+  });
 }
 
 function renderLibraries() {
@@ -44,13 +78,12 @@ function renderLibraries() {
     const isSelected = selectedLibraries.includes(library.id);
 
     const libraryDiv = document.createElement("div");
+    libraryDiv.className = "library-item";
     libraryDiv.innerHTML = `
-      <label>
-        <input type="checkbox" value="${library.id}" ${
+      <input type="checkbox" value="${library.id}" ${
       isSelected ? "checked" : ""
-    }>
-        ${library.name}
-      </label>
+    } id="lib-${library.id}">
+      <label for="lib-${library.id}">${library.name}</label>
     `;
 
     const checkbox = libraryDiv.querySelector("input");
@@ -84,19 +117,29 @@ function clearAll() {
 
 async function saveSettings() {
   try {
-    await chrome.storage.sync.set({ selectedLibraries });
-    showStatus("Settings saved successfully!");
+    const showEbooks = document.getElementById("showEbooks").checked;
+    const showAudiobooks = document.getElementById("showAudiobooks").checked;
+
+    await chrome.storage.sync.set({
+      selectedLibraries,
+      showEbooks,
+      showAudiobooks,
+    });
+
+    showStatus("Settings saved successfully!", "success");
   } catch (error) {
     console.error("Error saving settings:", error);
-    showStatus("Error saving settings. Please try again.");
+    showStatus("Error saving settings. Please try again.", "error");
   }
 }
 
-function showStatus(message) {
+function showStatus(message, type) {
   const statusElement = document.getElementById("statusMessage");
   statusElement.textContent = message;
+  statusElement.className = `status-message status-${type}`;
+  statusElement.style.display = "block";
 
   setTimeout(() => {
-    statusElement.textContent = "";
+    statusElement.style.display = "none";
   }, 3000);
 }

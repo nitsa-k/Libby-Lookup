@@ -26,6 +26,10 @@ async function handleCheckAvailability(data, sendResponse) {
     await loadLibrariesData();
   }
 
+  const prefs = await chrome.storage.sync.get(["showEbooks", "showAudiobooks"]);
+  const showEbooks = prefs.showEbooks !== false; // Default to true
+  const showAudiobooks = prefs.showAudiobooks !== false; // Default to true
+
   const results = [];
 
   const libraryPromises = libraries.map(async (libraryId, index) => {
@@ -44,7 +48,9 @@ async function handleCheckAvailability(data, sendResponse) {
       const availability = await checkLibraryAvailability(
         title,
         author,
-        library
+        library,
+        showEbooks,
+        showAudiobooks
       );
       return { library: library.name, id: library.id, ...availability };
     } catch (error) {
@@ -64,7 +70,13 @@ async function handleCheckAvailability(data, sendResponse) {
   sendResponse({ results });
 }
 
-async function checkLibraryAvailability(title, author, library) {
+async function checkLibraryAvailability(
+  title,
+  author,
+  library,
+  showEbooks,
+  showAudiobooks
+) {
   try {
     const searchResults = await searchThunderAPI(title, author, library);
 
@@ -73,24 +85,114 @@ async function checkLibraryAvailability(title, author, library) {
         status: "success",
         availability: "Not found",
         availabilityStatus: "unavailable",
+        mediaTypes: [],
       };
     }
 
-    const bestMatch = searchResults[0];
-    const availability = parseThunderAvailability(bestMatch);
+    const mediaTypes = groupByMediaType(
+      searchResults,
+      showEbooks,
+      showAudiobooks
+    );
+
+    const overallStatus = determineOverallStatus(mediaTypes);
 
     return {
       status: "success",
-      availability: availability.text,
-      availabilityStatus: availability.status,
+      availability: overallStatus.text,
+      availabilityStatus: overallStatus.status,
+      mediaTypes: mediaTypes,
     };
   } catch (error) {
     console.error(`Error checking availability at ${library.name}:`, error);
     return {
       status: "error",
       message: error.message,
+      mediaTypes: [],
     };
   }
+}
+
+function groupByMediaType(searchResults, showEbooks, showAudiobooks) {
+  const mediaTypes = [];
+
+  const ebookResults = searchResults.filter(
+    (item) => item.type && item.type.id === "ebook"
+  );
+  const audiobookResults = searchResults.filter(
+    (item) => item.type && item.type.id === "audiobook"
+  );
+
+  if (showEbooks && ebookResults.length > 0) {
+    const bestEbook = ebookResults[0]; // Most relevant ebook
+    const availability = parseThunderAvailability(bestEbook);
+    mediaTypes.push({
+      type: "ebook",
+      typeName: "eBook",
+      icon: "📖",
+      ...availability,
+    });
+  }
+
+  if (showAudiobooks && audiobookResults.length > 0) {
+    const bestAudiobook = audiobookResults[0]; // Most relevant audiobook
+    const availability = parseThunderAvailability(bestAudiobook);
+    mediaTypes.push({
+      type: "audiobook",
+      typeName: "Audiobook",
+      icon: "🎧",
+      ...availability,
+    });
+  }
+
+  return mediaTypes;
+}
+
+function determineOverallStatus(mediaTypes) {
+  if (mediaTypes.length === 0) {
+    return {
+      status: "unavailable",
+      text: "Not available",
+    };
+  }
+
+  const availableNow = mediaTypes.filter((mt) => mt.status === "available");
+  if (availableNow.length > 0) {
+    if (availableNow.length > 1) {
+      return {
+        status: "available",
+        text: "Available now",
+      };
+    } else {
+      return {
+        status: "available",
+        text: `${availableNow[0].typeName} available now`,
+      };
+    }
+  }
+
+  const onWaitlist = mediaTypes.filter((mt) => mt.status === "wait");
+  if (onWaitlist.length > 0) {
+    const best = onWaitlist[0];
+    return {
+      status: "wait",
+      text: `${best.typeName} - ${best.text}`,
+    };
+  }
+
+  const unknown = mediaTypes.filter((mt) => mt.status === "unknown");
+  if (unknown.length > 0) {
+    const best = unknown[0];
+    return {
+      status: "unknown",
+      text: `${best.typeName} - Check availability`,
+    };
+  }
+
+  return {
+    status: "unavailable",
+    text: "Not available",
+  };
 }
 
 async function searchThunderAPI(title, author, library) {
@@ -133,7 +235,7 @@ function parseThunderAvailability(item) {
     };
   }
 
-  if (item.holdsCount > 0) {
+    if (item.holdsCount > 0) {
     const estimatedWait = estimateWaitTime(
       item.estimatedWaitDays,
       item.holdsCount
@@ -144,21 +246,21 @@ function parseThunderAvailability(item) {
     };
   }
 
-  if (item.ownedCopies > 0) {
+    if (item.ownedCopies > 0) {
     return {
       status: "unknown",
       text: "Check availability",
     };
   }
 
-  return {
+    return {
     status: "unavailable",
     text: "Not available",
   };
 }
 
 function estimateWaitTime(estimatedWaitDays, holdsCount) {
-  if (estimatedWaitDays && estimatedWaitDays > 0) {
+    if (estimatedWaitDays && estimatedWaitDays > 0) {
     if (estimatedWaitDays < 7) {
       return `${estimatedWaitDays} day${estimatedWaitDays > 1 ? "s" : ""} wait`;
     } else if (estimatedWaitDays < 30) {
@@ -170,7 +272,7 @@ function estimateWaitTime(estimatedWaitDays, holdsCount) {
     }
   }
 
-  if (holdsCount > 0) {
+    if (holdsCount > 0) {
     return `${holdsCount} hold${
       holdsCount > 1 ? "s" : ""
     } - check availability`;
@@ -181,8 +283,10 @@ function estimateWaitTime(estimatedWaitDays, holdsCount) {
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
-    chrome.storage.sync.set({
+        chrome.storage.sync.set({
       selectedLibraries: ["bpl"],
+      showEbooks: true,
+      showAudiobooks: true,
     });
   }
 });

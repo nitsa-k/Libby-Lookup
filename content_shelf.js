@@ -148,7 +148,6 @@
         updateCellWithResults(placeholderCell, response.results);
       }
     } catch (error) {
-      console.error("Error processing book:", error);
       updateCellWithError(placeholderCell, error.message);
     }
   }
