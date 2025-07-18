@@ -85,6 +85,8 @@ async function checkLibraryAvailability(
         status: "success",
         availability: "Not found",
         availabilityStatus: "unavailable",
+        searchUrl: buildSearchUrl(title, author, library),
+        bookUrl: buildSearchUrl(title, author, library),
         mediaTypes: [],
       };
     }
@@ -92,8 +94,13 @@ async function checkLibraryAvailability(
     const mediaTypes = groupByMediaType(
       searchResults,
       showEbooks,
-      showAudiobooks
+      showAudiobooks,
+      library
     );
+
+    mediaTypes.forEach((mt) => {
+      mt.bookUrl = buildLibbyBookUrl(mt.item, library);
+    });
 
     const overallStatus = determineOverallStatus(mediaTypes);
 
@@ -101,6 +108,9 @@ async function checkLibraryAvailability(
       status: "success",
       availability: overallStatus.text,
       availabilityStatus: overallStatus.status,
+      waitDetails: overallStatus.waitDetails,
+      searchUrl: buildSearchUrl(title, author, library),
+      bookUrl: overallStatus.bookUrl,
       mediaTypes: mediaTypes,
     };
   } catch (error) {
@@ -108,12 +118,14 @@ async function checkLibraryAvailability(
     return {
       status: "error",
       message: error.message,
+      searchUrl: buildSearchUrl(title, author, library),
+      bookUrl: buildSearchUrl(title, author, library),
       mediaTypes: [],
     };
   }
 }
 
-function groupByMediaType(searchResults, showEbooks, showAudiobooks) {
+function groupByMediaType(searchResults, showEbooks, showAudiobooks, library) {
   const mediaTypes = [];
 
   const ebookResults = searchResults.filter(
@@ -124,24 +136,28 @@ function groupByMediaType(searchResults, showEbooks, showAudiobooks) {
   );
 
   if (showEbooks && ebookResults.length > 0) {
-    const bestEbook = ebookResults[0]; // Most relevant ebook
+    const bestEbook = ebookResults[0];
     const availability = parseThunderAvailability(bestEbook);
     mediaTypes.push({
       type: "ebook",
       typeName: "eBook",
       icon: "📖",
       ...availability,
+      bookUrl: buildLibbyBookUrl(bestEbook, library),
+      item: bestEbook,
     });
   }
 
   if (showAudiobooks && audiobookResults.length > 0) {
-    const bestAudiobook = audiobookResults[0]; // Most relevant audiobook
+    const bestAudiobook = audiobookResults[0];
     const availability = parseThunderAvailability(bestAudiobook);
     mediaTypes.push({
       type: "audiobook",
       typeName: "Audiobook",
       icon: "🎧",
       ...availability,
+      bookUrl: buildLibbyBookUrl(bestAudiobook, library),
+      item: bestAudiobook,
     });
   }
 
@@ -153,20 +169,27 @@ function determineOverallStatus(mediaTypes) {
     return {
       status: "unavailable",
       text: "Not available",
+      waitDetails: null,
+      bookUrl: null,
     };
   }
 
-  const availableNow = mediaTypes.filter((mt) => mt.status === "available");
+    const availableNow = mediaTypes.filter((mt) => mt.status === "available");
   if (availableNow.length > 0) {
+    const best = availableNow[0];
     if (availableNow.length > 1) {
       return {
         status: "available",
         text: "Available now",
+        waitDetails: null,
+        bookUrl: best.bookUrl,
       };
     } else {
       return {
         status: "available",
-        text: `${availableNow[0].typeName} available now`,
+        text: `${best.typeName} available now`,
+        waitDetails: null,
+        bookUrl: best.bookUrl,
       };
     }
   }
@@ -177,6 +200,8 @@ function determineOverallStatus(mediaTypes) {
     return {
       status: "wait",
       text: `${best.typeName} - ${best.text}`,
+      waitDetails: best.waitDetails,
+      bookUrl: best.bookUrl,
     };
   }
 
@@ -186,12 +211,17 @@ function determineOverallStatus(mediaTypes) {
     return {
       status: "unknown",
       text: `${best.typeName} - Check availability`,
+      waitDetails: null,
+      bookUrl: best.bookUrl,
     };
   }
 
+  const best = mediaTypes[0];
   return {
     status: "unavailable",
     text: "Not available",
+    waitDetails: null,
+    bookUrl: best.bookUrl,
   };
 }
 
@@ -216,12 +246,93 @@ async function searchThunderAPI(title, author, library) {
     const data = await response.json();
 
     if (data.items && data.items.length > 0) {
-      // TODO: Add relevance scoring for results later
-      return data.items.filter((item) => item.title && item.firstCreatorName);
+      const relevantResults = data.items
+        .filter((item) => item.title && item.firstCreatorName)
+        .map((item) => {
+          const relevanceScore = calculateRelevanceScore(
+            item.title,
+            item.firstCreatorName,
+            title,
+            author
+          );
+          return { ...item, relevanceScore };
+        })
+        .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+      return relevantResults;
     }
   }
 
   return [];
+}
+
+function calculateRelevanceScore(
+  foundTitle,
+  foundAuthor,
+  searchTitle,
+  searchAuthor
+) {
+  const normalize = (str) => {
+    if (!str) return "";
+    return str
+      .toLowerCase()
+      .replace(/[^\w\s]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const normalizedFoundTitle = normalize(foundTitle);
+  const normalizedSearchTitle = normalize(searchTitle);
+  const normalizedFoundAuthor = normalize(foundAuthor);
+  const normalizedSearchAuthor = normalize(searchAuthor);
+
+  let score = 0;
+
+  // Title matching (weighted 70%)
+  if (normalizedFoundTitle === normalizedSearchTitle) {
+    score += 70;
+  } else if (
+    normalizedFoundTitle.includes(normalizedSearchTitle) ||
+    normalizedSearchTitle.includes(normalizedFoundTitle)
+  ) {
+    score += 50;
+  } else {
+    // Word overlap for title
+    const foundTitleWords = normalizedFoundTitle.split(/\s+/);
+    const searchTitleWords = normalizedSearchTitle.split(/\s+/);
+    const titleOverlap = foundTitleWords.filter((word) =>
+      searchTitleWords.includes(word)
+    ).length;
+    const titleOverlapScore =
+      (titleOverlap /
+        Math.max(foundTitleWords.length, searchTitleWords.length)) *
+      40;
+    score += titleOverlapScore;
+  }
+
+  // Author matching (weighted 30%)
+  if (normalizedFoundAuthor === normalizedSearchAuthor) {
+    score += 30;
+  } else if (
+    normalizedFoundAuthor.includes(normalizedSearchAuthor) ||
+    normalizedSearchAuthor.includes(normalizedFoundAuthor)
+  ) {
+    score += 20;
+  } else {
+    // Word overlap for author
+    const foundAuthorWords = normalizedFoundAuthor.split(/\s+/);
+    const searchAuthorWords = normalizedSearchAuthor.split(/\s+/);
+    const authorOverlap = foundAuthorWords.filter((word) =>
+      searchAuthorWords.includes(word)
+    ).length;
+    const authorOverlapScore =
+      (authorOverlap /
+        Math.max(foundAuthorWords.length, searchAuthorWords.length)) *
+      15;
+    score += authorOverlapScore;
+  }
+
+  return score;
 }
 
 function parseThunderAvailability(item) {
@@ -232,37 +343,42 @@ function parseThunderAvailability(item) {
     return {
       status: "available",
       text: "Available now",
+      waitDetails: null,
     };
   }
 
-    if (item.holdsCount > 0) {
+  if (item.holdsCount > 0) {
     const estimatedWait = estimateWaitTime(
-      item.estimatedWaitDays,
-      item.holdsCount
+      item.ownedCopies || 1,
+      item.holdsCount,
+      item.estimatedWaitDays
     );
     return {
       status: "wait",
       text: estimatedWait,
+      waitDetails: `${item.ownedCopies || 1} copies, ${item.holdsCount} holds`,
     };
   }
 
-    if (item.ownedCopies > 0) {
+  if (item.ownedCopies > 0) {
     return {
       status: "unknown",
       text: "Check availability",
+      waitDetails: null,
     };
   }
 
-    return {
+  return {
     status: "unavailable",
     text: "Not available",
+    waitDetails: null,
   };
 }
 
-function estimateWaitTime(estimatedWaitDays, holdsCount) {
-    if (estimatedWaitDays && estimatedWaitDays > 0) {
+function estimateWaitTime(copiesOwned, holdsCount, estimatedWaitDays) {
+  if (estimatedWaitDays && estimatedWaitDays > 0) {
     if (estimatedWaitDays < 7) {
-      return `${estimatedWaitDays} day${estimatedWaitDays > 1 ? "s" : ""} wait`;
+      return `${estimatedWaitDays} days wait`;
     } else if (estimatedWaitDays < 30) {
       const weeks = Math.ceil(estimatedWaitDays / 7);
       return `${weeks} week${weeks > 1 ? "s" : ""} wait`;
@@ -272,18 +388,44 @@ function estimateWaitTime(estimatedWaitDays, holdsCount) {
     }
   }
 
-    if (holdsCount > 0) {
-    return `${holdsCount} hold${
-      holdsCount > 1 ? "s" : ""
-    } - check availability`;
-  }
+  if (!copiesOwned || !holdsCount) return "Several weeks wait";
 
-  return "Several weeks wait";
+  const weeksPerCopy = 2; // Assume 2 weeks per lending period
+  const estimatedWeeks = Math.ceil((holdsCount / copiesOwned) * weeksPerCopy);
+
+  if (estimatedWeeks < 4) {
+    return `${estimatedWeeks} week${estimatedWeeks > 1 ? "s" : ""} wait`;
+  } else if (estimatedWeeks < 26) {
+    const months = Math.ceil(estimatedWeeks / 4);
+    return `${months} month${months > 1 ? "s" : ""} wait`;
+  } else {
+    return "Several months wait";
+  }
+}
+
+function buildSearchUrl(title, author, library) {
+  const cleanTitle = encodeURIComponent(title.replace(/[^\w\s]/gi, "").trim());
+  const cleanAuthor = encodeURIComponent(
+    author.replace(/[^\w\s]/gi, "").trim()
+  );
+
+  return `https://libbyapp.com/search/${library.id}/search/query-${cleanTitle}%20${cleanAuthor}/page-1`;
+}
+
+function buildLibbyBookUrl(item, library) {
+  const titleEncoded = encodeURIComponent(
+    item.title
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+  );
+
+  return `https://libbyapp.com/search/${library.id}/search/query-${titleEncoded}/page-1/${item.id}/request?key=${library.id}`;
 }
 
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
-        chrome.storage.sync.set({
+    chrome.storage.sync.set({
       selectedLibraries: ["bpl"],
       showEbooks: true,
       showAudiobooks: true,
