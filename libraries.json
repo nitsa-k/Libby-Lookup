@@ -1,0 +1,22 @@
+[
+    {
+      "name": "Boston Public Library",
+      "id": "bpl"
+    },
+    {
+      "name": "Old Colony Library Network",
+      "id": "ocln"
+    },
+    {
+      "name": "CLAMS",
+      "id": "clamsnet"
+    },
+    {
+      "name": "CW MARS",
+      "id": "cwmars"
+    },
+    {
+      "name": "Northeastern University",
+      "id": "northeasternuni"
+    }
+  ]

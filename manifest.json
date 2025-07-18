@@ -4,6 +4,10 @@
   "version": "1.0",
   "description": "Check OverDrive (Libby) availability for books on Goodreads",
   "permissions": ["storage", "activeTab"],
+  "host_permissions": [
+    "https://www.goodreads.com/*",
+    "https://thunder.api.overdrive.com/*"
+  ],
   "background": {
     "service_worker": "service_worker.js"
   },
