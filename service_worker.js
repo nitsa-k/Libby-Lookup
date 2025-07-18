@@ -20,7 +20,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 async function handleCheckAvailability(data, sendResponse) {
-
   const { title, author, libraries } = data;
 
   if (!librariesData) {
@@ -29,21 +28,16 @@ async function handleCheckAvailability(data, sendResponse) {
 
   const results = [];
 
-  for (let i = 0; i < libraries.length; i++) {
-    const libraryId = libraries[i];
-
-    if (i > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+  const libraryPromises = libraries.map(async (libraryId, index) => {
+    await new Promise((resolve) => setTimeout(resolve, index * 100));
 
     const library = librariesData.find((lib) => lib.id === libraryId);
     if (!library) {
-      results.push({
+      return {
         library: libraryId,
         status: "error",
         message: "Library not found",
-      });
-      continue;
+      };
     }
 
     try {
@@ -52,17 +46,20 @@ async function handleCheckAvailability(data, sendResponse) {
         author,
         library
       );
-      results.push({ library: library.name, id: library.id, ...availability });
+      return { library: library.name, id: library.id, ...availability };
     } catch (error) {
       console.error(`Error checking ${library.name}:`, error);
-      results.push({
+      return {
         library: library.name,
         id: library.id,
         status: "error",
         message: error.message,
-      });
+      };
     }
-  }
+  });
+
+  const libraryResults = await Promise.all(libraryPromises);
+  results.push(...libraryResults);
 
   sendResponse({ results });
 }
