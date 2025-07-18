@@ -15,7 +15,8 @@
   "content_scripts": [
     {
       "matches": ["https://www.goodreads.com/book/show/*"],
-      "js": ["content_book.js"]
+      "js": ["content_book.js"],
+      "css": ["styles.css"]
     },
     {
       "matches": [
@@ -23,7 +24,8 @@
         "https://www.goodreads.com/list/show/*",
         "https://www.goodreads.com/shelf/show/*"
       ],
-      "js": ["content_shelf.js"]
+      "js": ["content_shelf.js"],
+      "css": ["styles.css"]
     }
   ],
   "action": {

@@ -1,0 +1,128 @@
+.libby-lookup-container {
+  margin: 20px 0;
+  font-family: "Lato", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.libby-lookup-widget {
+  background: #f8f6f0;
+  border: 1px solid #d6d0c4;
+  border-radius: 6px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.libby-lookup-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e0ddd4;
+}
+
+.libby-lookup-header span {
+  font-size: 18px;
+}
+
+.libby-lookup-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #382110;
+  font-weight: 600;
+}
+
+.libby-lookup-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #666;
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.libby-lookup-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #e0ddd4;
+  border-top: 2px solid #00635d;
+  border-radius: 50%;
+  animation: libby-spin 1s linear infinite;
+}
+
+@keyframes libby-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.libby-lookup-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.libby-lookup-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #e0ddd4;
+}
+
+.libby-lookup-item:last-child {
+  border-bottom: none;
+}
+
+.libby-lookup-item strong {
+  color: #382110;
+  font-weight: 600;
+}
+
+.libby-lookup-status {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.libby-lookup-status.available {
+  color: #2e7d32;
+}
+
+.libby-lookup-status.wait {
+  color: #f57c00;
+}
+
+.libby-lookup-status.unavailable {
+  color: #d32f2f;
+}
+
+.libby-lookup-error {
+  color: #d32f2f;
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.libby-lookup-no-libraries {
+  text-align: center;
+  color: #666;
+  font-size: 14px;
+  padding: 12px 0;
+}
+
+.libby-lookup-button {
+  background: #00635d;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  margin-top: 8px;
+  transition: background 0.2s;
+}
+
+.libby-lookup-button:hover {
+  background: #004a43;
+}
