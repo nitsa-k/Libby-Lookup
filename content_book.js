@@ -1,25 +1,26 @@
 (function () {
   "use strict";
 
-    if (document.readyState === "loading") {
+  if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {
     init();
   }
 
   function init() {
-        setTimeout(extractBookInfoAndCheck, 1000);
+    setTimeout(extractBookInfoAndCheck, 1000);
   }
 
   function extractBookInfoAndCheck() {
     const bookInfo = extractBookInfo();
     if (bookInfo.title && bookInfo.author) {
+      bookInfo.cleanTitle = cleanBookTitle(bookInfo.title);
       checkAvailabilityAndDisplay(bookInfo);
     }
   }
 
   function extractBookInfo() {
-        const titleSelectors = [
+    const titleSelectors = [
       'h1[data-testid="bookTitle"]',
       "h1.gr-h1.gr-h1--serif",
       "h1#bookTitle",
@@ -38,60 +39,95 @@
     let title = "";
     let author = "";
 
-        for (const selector of titleSelectors) {
+    for (const selector of titleSelectors) {
       const element = document.querySelector(selector);
       if (element) {
         title = element.textContent.trim();
-                break;
+        break;
       }
     }
 
-        for (const selector of authorSelectors) {
+    for (const selector of authorSelectors) {
       const element = document.querySelector(selector);
       if (element) {
         author = element.textContent.trim();
-                break;
+        break;
       }
     }
 
-        return { title, author };
+    return { title, author };
+  }
+
+  function cleanBookTitle(title) {
+    if (!title) return title;
+
+    let cleaned = title.replace(
+      /\s*\([^)]*(?:series|#\d+|book\s+\d+|vol\.?\s*\d+)[^)]*\)\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /\s*\[[^\]]*(?:series|#\d+|book\s+\d+|vol\.?\s*\d+)[^\]]*\]\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /\s*[,:\-–—]\s*(?:book\s+\d+|#\d+|vol\.?\s*\d+)\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /:\s*(?:book\s+\d+|#\d+|vol\.?\s*\d+|a\s+\w+\s+(?:novel|story|tale|memoir|biography))\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /\s*\((?:kindle\s+edition|paperback|hardcover|mass\s+market|large\s+print)\)\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+    cleaned = cleaned.replace(/[,:\-–—]+\s*$/, "").trim();
+
+    return cleaned || title;
   }
 
   async function checkAvailabilityAndDisplay(bookInfo) {
-        const result = await chrome.storage.sync.get(["selectedLibraries"]);
+    const result = await chrome.storage.sync.get(["selectedLibraries"]);
     const selectedLibraries = result.selectedLibraries || [];
 
     if (selectedLibraries.length === 0) {
-            displayNoLibrariesMessage();
+      displayNoLibrariesMessage();
       return;
     }
 
-        const container = createAvailabilityContainer();
+    const container = createAvailabilityContainer();
     displayLoading(container);
 
-        chrome.runtime.sendMessage(
+    chrome.runtime.sendMessage(
       {
         action: "checkAvailability",
         data: {
-          title: bookInfo.title,
+          title: bookInfo.cleanTitle,
+          originalTitle: bookInfo.title,
           author: bookInfo.author,
           libraries: selectedLibraries,
         },
       },
       (response) => {
-                if (response.error) {
-                    displayError(container, response.error);
+        if (response.error) {
+          displayError(container, response.error);
         } else if (response.results) {
-                    displayResults(container, response.results);
+          displayResults(
+            container,
+            response.results,
+            bookInfo.title,
+            bookInfo.cleanTitle
+          );
         } else {
-                    displayError(container, "Invalid response format");
+          displayError(container, "Invalid response format");
         }
       }
     );
   }
 
   function createAvailabilityContainer() {
-        const existing = document.querySelector(".libby-lookup-container");
+    const existing = document.querySelector(".libby-lookup-container");
     if (existing) {
       existing.remove();
     }
@@ -99,7 +135,7 @@
     const container = document.createElement("div");
     container.className = "libby-lookup-container";
 
-        const insertionPoints = [
+    const insertionPoints = [
       ".BookPageMetadataSection",
       ".rightContainer",
       ".bookMeta",
@@ -139,11 +175,16 @@
     `;
   }
 
-  function displayResults(container, results) {
+  function displayResults(container, results, originalTitle, cleanTitle) {
     const header = `
       <div class="libby-lookup-header">
         <span class="libby-lookup-icon-text">📚</span>
         <h3>Library Availability</h3>
+        ${
+          originalTitle !== cleanTitle
+            ? `<div class="libby-lookup-search-note">Searching for: "${cleanTitle}"</div>`
+            : ""
+        }
       </div>
     `;
 
@@ -242,7 +283,7 @@
       </div>
     `;
 
-        document
+    document
       .getElementById("libby-lookup-options")
       .addEventListener("click", () => {
         chrome.runtime.openOptionsPage();

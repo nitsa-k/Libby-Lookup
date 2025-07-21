@@ -59,6 +59,7 @@
       if (bookInfo.title && bookInfo.author) {
         books.push({
           ...bookInfo,
+          cleanTitle: cleanBookTitle(bookInfo.title),
           row: row,
           index: index,
         });
@@ -107,6 +108,35 @@
     return { title, author };
   }
 
+  function cleanBookTitle(title) {
+    if (!title) return title;
+
+    let cleaned = title.replace(
+      /\s*\([^)]*(?:series|#\d+|book\s+\d+|vol\.?\s*\d+)[^)]*\)\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /\s*\[[^\]]*(?:series|#\d+|book\s+\d+|vol\.?\s*\d+)[^\]]*\]\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /\s*[,:\-–—]\s*(?:book\s+\d+|#\d+|vol\.?\s*\d+)\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /:\s*(?:book\s+\d+|#\d+|vol\.?\s*\d+|a\s+\w+\s+(?:novel|story|tale))\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /\s*\((?:kindle\s+edition|paperback|hardcover|mass\s+market|large\s+print)\)\s*$/i,
+      ""
+    );
+    cleaned = cleaned.replace(/\s+/g, " ").trim();
+    cleaned = cleaned.replace(/[,:\-–—]+\s*$/, "").trim();
+
+    return cleaned || title;
+  }
+
   function addLibraryColumn() {
     const headerSelectors = ["thead tr", ".tableHeader", "tr.header"];
 
@@ -139,7 +169,8 @@
           {
             action: "checkAvailability",
             data: {
-              title: book.title,
+              title: book.cleanTitle,
+              originalTitle: book.title,
               author: book.author,
               libraries: selectedLibraries,
             },
